@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Ability/Tasks/WaitForGameplayTagChange.h"
@@ -31,7 +31,7 @@ void UGMCAbilityTask_WaitForGameplayTagChange::OnGameplayTagChanged(const FGamep
 			break;
 
 		case Unset:
-			MatchedTags = AddedTags.Filter(Tags);
+			MatchedTags = RemovedTags.Filter(Tags);
 			break;
 
 		case Changed:

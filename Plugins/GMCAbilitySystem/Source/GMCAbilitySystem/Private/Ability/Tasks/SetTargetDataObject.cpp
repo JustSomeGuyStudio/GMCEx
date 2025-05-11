@@ -1,4 +1,4 @@
-
+﻿
 
 #include "Ability/Tasks/SetTargetDataObject.h"
 
@@ -16,7 +16,7 @@ void UGMCAbilityTask_SetTargetDataObject::Activate()
 {
 	Super::Activate();
 
-	if (AbilitySystemComponent->GetNetMode() != NM_DedicatedServer)
+	if (IsClientOrRemoteListenServerPawn())
 	{
 		ClientProgressTask();
 	}

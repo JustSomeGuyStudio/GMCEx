@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "InstancedStruct.h"
 #include "Ability/GMCAbility.h"
 #include "Ability/Tasks/GMCAbilityTaskData.h"
@@ -64,10 +64,8 @@ public:
 	// Task must make sure this is handled properly
 	virtual void ClientProgressTask();
 	
-	void Heartbeat()
-	{
-		LastHeartbeatReceivedTime = AbilitySystemComponent->ActionTimer;
-	};
+	virtual void Heartbeat();
+
 
 protected:
 	bool bTaskCompleted;
@@ -75,13 +73,18 @@ protected:
 	/** Task Owner that created us */
 	TWeakObjectPtr<AActor> TaskOwner;
 
+	// Whether this task is running on a client or a client on a listen server
+	bool IsClientOrRemoteListenServerPawn() const;
+
 private:
 	// How often client sends heartbeats to server
-	float HeartbeatInterval = .5f;
+	float HeartbeatInterval = .1f;
 
 	// Max time between heartbeats before server cancels task
-	float HeartbeatMaxInterval = 1.f;
+	float HeartbeatMaxInterval =.3f;
 	
 	float ClientLastHeartbeatSentTime;
 	float LastHeartbeatReceivedTime;
+
+
 };

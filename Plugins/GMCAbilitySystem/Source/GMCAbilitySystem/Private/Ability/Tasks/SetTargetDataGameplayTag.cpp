@@ -1,4 +1,4 @@
-#include "Ability/Tasks/SetTargetDataGameplayTag.h"
+﻿#include "Ability/Tasks/SetTargetDataGameplayTag.h"
 #include "GMCAbilityComponent.h"
 
 UGMCAbilityTask_SetTargetDataGameplayTag* UGMCAbilityTask_SetTargetDataGameplayTag::SetTargetDataGameplayTag(UGMCAbility* OwningAbility, FGameplayTag InTag){
@@ -11,7 +11,7 @@ UGMCAbilityTask_SetTargetDataGameplayTag* UGMCAbilityTask_SetTargetDataGameplayT
 void UGMCAbilityTask_SetTargetDataGameplayTag::Activate(){
 	Super::Activate();
 
-	if (AbilitySystemComponent->GetNetMode() != NM_DedicatedServer)
+	if (IsClientOrRemoteListenServerPawn())
 	{
 		ClientProgressTask();
 	}

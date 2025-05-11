@@ -1,4 +1,4 @@
-#include "Ability/Tasks/SetTargetDataInt.h"
+﻿#include "Ability/Tasks/SetTargetDataInt.h"
 
 #include "GMCAbilityComponent.h"
 
@@ -16,7 +16,7 @@ void UGMCAbilityTask_SetTargetDataInt::Activate()
 {
 	Super::Activate();
 
-	if (AbilitySystemComponent->GetNetMode() != NM_DedicatedServer)
+	if (IsClientOrRemoteListenServerPawn())
 	{
 		ClientProgressTask();
 	}

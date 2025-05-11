@@ -1,4 +1,4 @@
-#include "Ability/Tasks/WaitForGMCMontageChange.h"
+﻿#include "Ability/Tasks/WaitForGMCMontageChange.h"
 
 #include "GMCOrganicMovementComponent.h"
 #include "Components/GMCAbilityComponent.h"
@@ -43,7 +43,7 @@ void UGMCAbilityTask_WaitForGMCMontageChange::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	const UAnimMontage* RunningMontage = OrganicMovementCmp->GetActiveMontage(OrganicMovementCmp->MontageTracker);
+	RunningMontage = OrganicMovementCmp->GetActiveMontage(OrganicMovementCmp->MontageTracker);
 	
 	// If the montage has changed, finish the task
 	if (StartingMontage != RunningMontage)
@@ -56,7 +56,7 @@ void UGMCAbilityTask_WaitForGMCMontageChange::OnFinish()
 {
 	if (GetState() != EGameplayTaskState::Finished)
 	{
-		Completed.Broadcast();
+		Completed.Broadcast(RunningMontage);
 		EndTask();
 	}
 }

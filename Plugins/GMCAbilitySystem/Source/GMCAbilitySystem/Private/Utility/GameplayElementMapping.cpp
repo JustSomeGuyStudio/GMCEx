@@ -1,4 +1,4 @@
-#include "Utility/GameplayElementMapping.h"
+﻿#include "Utility/GameplayElementMapping.h"
 #include "GMCAbilityComponent.h"
 #include "Misc/DataValidation.h"
 #include "Misc/EngineVersionComparison.h"
@@ -148,7 +148,11 @@ void FGMCGameplayElementTagPropertyMap::Initialize(UObject* Owner, UGMC_AbilityS
 		// We're invalid, so remove.
 		UE_LOG(LogGMCAbilitySystem, Error, TEXT("FGMCGameplayElementTagPropertyMap: Removing invalid mapping [index %d, tags %s, property %s] for %s"),
 			Index, *Mapping.TagsToMap.ToString(), *Mapping.PropertyName.ToString(), *GetNameSafe(Owner));
-		PropertyMappings.RemoveAtSwap(Index, 1, false);
+#if ENGINE_MAJOR_VERSION >=5 && ENGINE_MINOR_VERSION >= 4
+			PropertyMappings.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+#else
+			PropertyMappings.RemoveAtSwap(Index, 1, false);
+#endif
 	}
 
 	ApplyCurrentTags();

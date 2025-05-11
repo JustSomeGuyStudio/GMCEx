@@ -1,4 +1,4 @@
-#include "Ability/Tasks/SetTargetDataFloat.h"
+﻿#include "Ability/Tasks/SetTargetDataFloat.h"
 
 #include "GMCAbilityComponent.h"
 
@@ -16,7 +16,7 @@ void UGMCAbilityTask_SetTargetDataFloat::Activate()
 {
 	Super::Activate();
 
-	if (AbilitySystemComponent->GetNetMode() != NM_DedicatedServer)
+	if (IsClientOrRemoteListenServerPawn())
 	{
 		ClientProgressTask();
 	}

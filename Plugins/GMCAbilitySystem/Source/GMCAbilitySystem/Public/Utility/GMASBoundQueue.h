@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -483,7 +483,11 @@ public:
 
 		if (TargetIdx != -1)
 		{
+#if ENGINE_MAJOR_VERSION >=5 && ENGINE_MINOR_VERSION >= 4
+			QueuedRPCOperations.RemoveAtSwap(TargetIdx, 1, EAllowShrinking::No);
+#else
 			QueuedRPCOperations.RemoveAtSwap(TargetIdx, 1, false);
+#endif
 			return true;
 		}
 
@@ -498,7 +502,11 @@ public:
 		
 		if (TargetIdx != -1)
 		{
+#if ENGINE_MAJOR_VERSION >=5 && ENGINE_MINOR_VERSION >= 4
+			QueuedBoundOperations.RemoveAtSwap(TargetIdx, 1, EAllowShrinking::No);
+#else
 			QueuedBoundOperations.RemoveAtSwap(TargetIdx, 1, false);
+#endif
 			return true;
 		}
 
@@ -567,6 +575,10 @@ public:
 	{
 		// Deduct from our ack lifetime; if we've gone stale, remove the stale acks to avoid it just growing forever.
 		TArray<FGMASBoundQueueAcknowledgement> FreshAcks;
+		if (!Acknowledgments.IsValid()) { // that fix the crash, but doesn't fix the issue. @packetdancer
+			return;
+		}
+			
 		auto& Acks = Acknowledgments.GetMutable<FGMASBoundQueueAcknowledgements>();
 		for (auto& Ack : Acks.AckSet)
 		{

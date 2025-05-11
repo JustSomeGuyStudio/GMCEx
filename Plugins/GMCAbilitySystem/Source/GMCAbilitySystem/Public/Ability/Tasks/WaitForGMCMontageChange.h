@@ -1,9 +1,9 @@
-#pragma once
+﻿#pragma once
 #include "GMCAbilityTaskBase.h"
 #include "GMCOrganicMovementComponent.h"
 #include "WaitForGMCMontageChange.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGMCAbilityTaskWaitForGMCMontageChangeDelayOutputPin);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGMCAbilityTaskWaitForGMCMontageChangeDelayOutputPin, UAnimMontage*, CurrentMontage);
 
 UCLASS()
 class GMCABILITYSYSTEM_API UGMCAbilityTask_WaitForGMCMontageChange : public UGMCAbilityTaskBase
@@ -31,4 +31,7 @@ class GMCABILITYSYSTEM_API UGMCAbilityTask_WaitForGMCMontageChange : public UGMC
 	
 private:
 	void OnFinish();
+
+	UPROPERTY()
+	UAnimMontage* RunningMontage;
 };

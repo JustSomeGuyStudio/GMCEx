@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Effects/GMCAbilityEffect.h"
@@ -56,16 +56,29 @@ void UGMCAbilityEffect::StartEffect()
 	bHasStarted = true;
 
 	// Ensure tag requirements are met before applying the effect
-	if( ( EffectData.MustHaveTags.Num() > 0 && !DoesOwnerHaveTagFromContainer(EffectData.MustHaveTags) ) ||
-		DoesOwnerHaveTagFromContainer(EffectData.MustNotHaveTags) )
+	if( ( EffectData.ApplicationMustHaveTags.Num() > 0 && !DoesOwnerHaveTagFromContainer(EffectData.ApplicationMustHaveTags) ) ||
+	DoesOwnerHaveTagFromContainer(EffectData.ApplicationMustNotHaveTags) ||
+	( EffectData.MustHaveTags.Num() > 0 && !DoesOwnerHaveTagFromContainer(EffectData.MustHaveTags) ) ||
+	DoesOwnerHaveTagFromContainer(EffectData.MustNotHaveTags) )
 	{
 		EndEffect();
 		return;
 	}
 	
+	// Effect Query
+	if (!EffectData.ActivationQuery.IsEmpty() && !EffectData.ActivationQuery.Matches(OwnerAbilityComponent->GetActiveTags()))
+		{
+		EndEffect();
+		return;
+	}
+
 	AddTagsToOwner();
 	AddAbilitiesToOwner();
-	EndActiveAbilitiesFromOwner();
+	EndActiveAbilitiesFromOwner(EffectData.CancelAbilityOnActivation);
+
+	EndActiveAbilitiesByDefinitionQuery(EffectData.EndAbilityOnActivationQuery);
+
+	bHasAppliedEffect = true;
 
 	// Instant effects modify base value and end instantly
 	if (EffectData.bIsInstant)
@@ -100,6 +113,8 @@ void UGMCAbilityEffect::StartEffect()
 		EndEffect();
 	}
 
+	StartEffectEvent();
+
 	UpdateState(EGMASEffectState::Started, true);
 }
 
@@ -115,8 +130,8 @@ void UGMCAbilityEffect::EndEffect()
 		UpdateState(EGMASEffectState::Ended, true);
 	}
 
-	// Only remove tags and abilities if the effect has started
-	if (!bHasStarted) return;
+	// Only remove tags and abilities if the effect has started and applied
+	if (!bHasStarted || !bHasAppliedEffect) return;
 
 	if (EffectData.bNegateEffectAtEnd)
 	{
@@ -126,8 +141,13 @@ void UGMCAbilityEffect::EndEffect()
 		}
 	}
 	
+	EndActiveAbilitiesByDefinitionQuery(EffectData.EndAbilityOnEndQuery);
+
+	EndActiveAbilitiesFromOwner(EffectData.CancelAbilityOnEnd);
 	RemoveTagsFromOwner(EffectData.bPreserveGrantedTagsIfMultiple);
 	RemoveAbilitiesFromOwner();
+	
+	EndEffectEvent();
 }
 
 
@@ -158,7 +178,15 @@ void UGMCAbilityEffect::BeginDestroy() {
 
 void UGMCAbilityEffect::Tick(float DeltaTime)
 {
-	if (bCompleted) return;
+	// Aherys : I'm not sure if this is correct. Sometime this is GC. We need to catch why, and when.
+	if (bCompleted || IsUnreachable()) {
+		if (IsUnreachable()) {
+			UE_LOG(LogGMCAbilitySystem, Error, TEXT("Effect is unreachable : %s"), *EffectData.EffectTag.ToString());
+			ensureMsgf(false, TEXT("Effect is being ticked after being completed or GC : %s"), *EffectData.EffectTag.ToString());
+		}
+		return;
+	}
+	
 	EffectData.CurrentDuration += DeltaTime;
 	TickEvent(DeltaTime);
 	
@@ -169,6 +197,11 @@ void UGMCAbilityEffect::Tick(float DeltaTime)
 		EndEffect();
 	}
 
+	// query to maintain effect
+	if ( !EffectData.MustMaintainQuery.IsEmpty() && EffectData.MustMaintainQuery.Matches(OwnerAbilityComponent->GetActiveTags()))
+	{
+		EndEffect();
+	}
 
 	// If there's a period, check to see if it's time to tick
 	if (!IsPeriodPaused() && EffectData.Period > 0 && CurrentState == EGMASEffectState::Started)
@@ -202,6 +235,11 @@ void UGMCAbilityEffect::PeriodTick()
 			OwnerAbilityComponent->ApplyAbilityEffectModifier(AttributeModifier, true, false, SourceAbilityComponent);
 		}
 	}
+	PeriodTickEvent();
+}
+
+void UGMCAbilityEffect::PeriodTickEvent_Implementation()
+{
 }
 
 void UGMCAbilityEffect::UpdateState(EGMASEffectState State, bool Force)
@@ -217,6 +255,18 @@ void UGMCAbilityEffect::UpdateState(EGMASEffectState State, bool Force)
 bool UGMCAbilityEffect::IsPeriodPaused()
 {
 	return DoesOwnerHaveTagFromContainer(EffectData.PausePeriodicEffect);
+}
+
+void UGMCAbilityEffect::GetOwnerActor(AActor*& OutOwnerActor) const
+{
+	if (OwnerAbilityComponent)
+	{
+		OutOwnerActor = OwnerAbilityComponent->GetOwner();
+	}
+	else
+	{
+		OutOwnerActor = nullptr;
+	}
 }
 
 void UGMCAbilityEffect::AddTagsToOwner()
@@ -269,9 +319,9 @@ void UGMCAbilityEffect::RemoveAbilitiesFromOwner()
 }
 
 
-void UGMCAbilityEffect::EndActiveAbilitiesFromOwner() {
+void UGMCAbilityEffect::EndActiveAbilitiesFromOwner(const FGameplayTagContainer& TagContainer) {
 	
-	for (const FGameplayTag Tag : EffectData.CancelAbilityOnActivation)
+	for (const FGameplayTag Tag : TagContainer)
 	{
 		OwnerAbilityComponent->EndAbilitiesByTag(Tag);
 	}
@@ -329,4 +379,27 @@ void UGMCAbilityEffect::CheckState()
 			break;
 	default: break;
 	}
+}
+
+void UGMCAbilityEffect::EndActiveAbilitiesByDefinitionQuery(FGameplayTagQuery EndAbilityOnActivationViaDefinitionQuery)
+{
+
+	if (EndAbilityOnActivationViaDefinitionQuery.IsEmpty()) return;
+
+	int NumCancelled = OwnerAbilityComponent->EndAbilitiesByQuery(EndAbilityOnActivationViaDefinitionQuery);
+
+	UE_LOG(LogGMCAbilitySystem, Verbose, TEXT("Effect %s cancelled %d ability(ies) via EffectDefinition query."),
+		*EffectData.EffectTag.ToString(), NumCancelled);
+}
+
+void UGMCAbilityEffect::ModifyMustMaintainQuery(const FGameplayTagQuery& NewQuery)
+{
+	EffectData.MustMaintainQuery = NewQuery;
+	UE_LOG(LogGMCAbilitySystem, Verbose, TEXT("MustMainQuery modified: %s"), *NewQuery.GetDescription());
+}
+
+void UGMCAbilityEffect::ModifyEndAbilitiesOnEndQuery(const FGameplayTagQuery& NewQuery)
+{
+	EffectData.EndAbilityOnEndQuery = NewQuery;
+	UE_LOG(LogGMCAbilitySystem, Verbose, TEXT("EndAbilityOnEndViaDefinitionQuery modified: %s"), *NewQuery.GetDescription());
 }

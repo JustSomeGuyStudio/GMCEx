@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "GameplayTagContainer.h"
 #include "GMCAbilityData.h"
 #include "GMCAbilitySystem.h"
@@ -11,6 +11,7 @@
 UENUM(BlueprintType)
 enum class EAbilityState : uint8
 {
+	PreExecution,
 	Initialized,
 	Running,
 	Waiting,
@@ -36,7 +37,7 @@ public:
 	//// Ability State
 	// EAbilityState. Use Getters/Setters
 	UPROPERTY(BlueprintReadOnly, Category = "GMCAbilitySystem")
-	EAbilityState AbilityState;
+	EAbilityState AbilityState = EAbilityState::PreExecution;
 
 	// Data used to execute this ability
 	UPROPERTY(BlueprintReadOnly, Category = "GMCAbilitySystem")
@@ -205,12 +206,14 @@ public:
 	// Prevent Abilities with these tags from activating when this ability is activated
 	FGameplayTagContainer BlockOtherAbility;
 
+	virtual void CancelAbilities();
+	
 	/** 
 	 * If true, activate on movement tick, if false, activate on ancillary tick. Defaults to true.
 	 * Should be set to false for actions that should not be replayed on mispredictions. i.e. firing a weapon
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GMCAbilitySystem")
-	bool bActivateOnMovementTick = true; 
+	bool bActivateOnMovementTick = false; 
 
 	UFUNCTION()
 	void ServerConfirm();
@@ -257,6 +260,29 @@ public:
 	FString ToString() const{
 		return FString::Printf(TEXT("[name: ] %s (State %s) [Tag %s] | NumTasks %d"), *GetName(), *EnumToString(AbilityState), *AbilityTag.ToString(), RunningTasks.Num());
 	}
+
+		UPROPERTY(EditDefaultsOnly, Category = "GMCAbilitySystem")
+	// Container for a more generalized definition of abilities
+	FGameplayTagContainer AbilityDefinition;
+
+		// Queries
+	UPROPERTY(EditDefaultsOnly, Category = "GMCAbilitySystem", meta=(DisplayName="Activation Tags Query"))
+	// query must match at activation
+	FGameplayTagQuery ActivationQuery;
+
+	UPROPERTY(EditDefaultsOnly, Category = "GMCAbilitySystem", meta=(DisplayName="Cancel Ability via Definition Query"))
+	// End Abilities via Definition
+	FGameplayTagQuery EndOtherAbilitiesQuery;
+
+	UPROPERTY(EditDefaultsOnly, Category = "GMCAbilitySystem", meta=(DisplayName="Block Other Ability via Definition Query"))
+	// Block Abilities via Definition
+	FGameplayTagQuery BlockOtherAbilitiesQuery;
+
+	UFUNCTION(BlueprintCallable, Category = "GMCAbilitySystem|Query")
+	void ModifyEndOtherAbilitiesViaDefinitionQuery(const FGameplayTagQuery& NewQuery);
+
+	UFUNCTION(BlueprintCallable, Category = "GMCAbilitySystem|Query")
+	void ModifyBlockOtherAbilitiesViaDefinitionQuery(const FGameplayTagQuery& NewQuery);
 
 };
 

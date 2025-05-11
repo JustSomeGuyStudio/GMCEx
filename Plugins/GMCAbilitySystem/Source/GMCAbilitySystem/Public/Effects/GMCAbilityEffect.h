@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -81,7 +81,8 @@ struct FGMCAbilityEffectData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
 	double Delay = 0;
 
-	// How long the effect lasts
+	// How long the effect lasts, 0 for infinite
+	// Does nothing if effect is instant
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
 	double Duration = 0;
 
@@ -140,6 +141,10 @@ struct FGMCAbilityEffectData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
 	FGameplayTagContainer CancelAbilityOnActivation;
 
+	// When this effect end, it will end ability present in this container
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
+	FGameplayTagContainer CancelAbilityOnEnd;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
 	TArray<FGMCAttributeModifier> Modifiers;
 	
@@ -158,6 +163,28 @@ struct FGMCAbilityEffectData
 	FString ToString() const{
 		return FString::Printf(TEXT("[id: %d] [Tag: %s] (Duration: %.3lf) (CurrentDuration: %.3lf)"), EffectID, *EffectTag.ToString(), Duration, CurrentDuration);
 	}
+
+	// query stuff
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
+	// Container for a more generalized definition of effects
+	FGameplayTagContainer EffectDefinition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
+	// query must match on effect activation
+	FGameplayTagQuery ActivationQuery;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem")
+	// query must be maintained throughout effect
+	FGameplayTagQuery MustMaintainQuery;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem", meta = (DisplayName = "End Ability On Activation Via Definition Query"))
+	// end ability on effect activation if definition matches query
+	FGameplayTagQuery EndAbilityOnActivationQuery;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GMCAbilitySystem", meta = (DisplayName = "End Ability On End Via Definition Query"))
+	// end ability on effect end if definition matches query
+	FGameplayTagQuery EndAbilityOnEndQuery;
+
 };
 
 /**
@@ -178,7 +205,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GMCAbilitySystem")
 	void InitializeEffect(FGMCAbilityEffectData InitializationData);
-	
+
+	UFUNCTION(BlueprintCallable, Category = "GMCAbilitySystem")
 	void EndEffect();
 
 	virtual void BeginDestroy() override;
@@ -206,6 +234,9 @@ public:
 	bool AttributeDynamicCondition() const;
 	
 	void PeriodTick();
+
+	UFUNCTION(BlueprintNativeEvent, meta=(DisplayName="Period Tick"), Category="GMCAbilitySystem")
+	void PeriodTickEvent();
 	
 	void UpdateState(EGMASEffectState State, bool Force=false);
 
@@ -217,15 +248,22 @@ public:
 	// confirmed this effect within a time range, the effect will be cancelled.
 	float ClientEffectApplicationTime;
 
+	UFUNCTION(BlueprintPure)
+	void GetOwnerActor(AActor*& OwnerActor) const;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "GMCAbilitySystem")
-	UGMC_AbilitySystemComponent* SourceAbilityComponent;
+	UGMC_AbilitySystemComponent* SourceAbilityComponent = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, Category = "GMCAbilitySystem")
-	UGMC_AbilitySystemComponent* OwnerAbilityComponent;
+	UGMC_AbilitySystemComponent* OwnerAbilityComponent = nullptr;
+
+	// Apply the things that should happen as soon as an effect starts. Tags, instant effects, etc.
+	virtual void StartEffect();
 
 private:
 	bool bHasStarted;
+	bool bHasAppliedEffect;
 
 	// Used for calculating when to tick Period effects
 	float PrevPeriodMod = 0;
@@ -240,22 +278,35 @@ private:
 
 	void AddAbilitiesToOwner();
 	void RemoveAbilitiesFromOwner();
-	void EndActiveAbilitiesFromOwner();
+	void EndActiveAbilitiesFromOwner(const FGameplayTagContainer& TagContainer);
+	
 
 	// Does the owner have any of the tags from the container?
 	bool DoesOwnerHaveTagFromContainer(FGameplayTagContainer& TagContainer) const;
 	
 	bool DuplicateEffectAlreadyApplied();
 
-	// Apply the things that should happen as soon as an effect starts. Tags, instant effects, etc.
-	void StartEffect();
+	void EndActiveAbilitiesByDefinitionQuery(FGameplayTagQuery);
 
 	
-	
-
 public:
+
+	// Blueprint Event for when the effect starts
+	UFUNCTION(BlueprintImplementableEvent)
+	void StartEffectEvent();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndEffectEvent();
+
+	
 	FString ToString() {
 		return FString::Printf(TEXT("[name: %s] (State %s) | Started: %d | Period Paused: %d | Data: %s"), *GetName(), *EnumToString(CurrentState), bHasStarted, IsPeriodPaused(), *EffectData.ToString());
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "GMCAbilitySystem|Query")
+	void ModifyMustMaintainQuery(const FGameplayTagQuery& NewQuery);
+
+	UFUNCTION(BlueprintCallable, Category = "GMCAbilitySystem|Query")
+	void ModifyEndAbilitiesOnEndQuery(const FGameplayTagQuery& NewQuery);
 };
 

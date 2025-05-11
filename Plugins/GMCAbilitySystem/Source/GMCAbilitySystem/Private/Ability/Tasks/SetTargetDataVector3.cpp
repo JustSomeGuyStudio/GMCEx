@@ -1,4 +1,4 @@
-#include "Ability/Tasks/SetTargetDataVector3.h"
+﻿#include "Ability/Tasks/SetTargetDataVector3.h"
 
 #include "GMCAbilityComponent.h"
 
@@ -16,7 +16,7 @@ void UGMCAbilityTask_SetTargetDataVector3::Activate()
 {
 	Super::Activate();
 
-	if (AbilitySystemComponent->GetNetMode() != NM_DedicatedServer)
+	if (IsClientOrRemoteListenServerPawn())
 	{
 		ClientProgressTask();
 	}
@@ -25,6 +25,13 @@ void UGMCAbilityTask_SetTargetDataVector3::Activate()
 void UGMCAbilityTask_SetTargetDataVector3::ProgressTask(FInstancedStruct& TaskData)
 {
 	Super::ProgressTask(TaskData);
+	if (TaskData.GetScriptStruct() != FGMCAbilityTaskTargetDataVector3::StaticStruct())
+	{
+		UE_LOG(LogGMCAbilitySystem, Error, TEXT("UGMCAbilityTask_SetTargetDataVector3::ProgressTask: Invalid TaskData"));
+		EndTask();
+		return;
+	}
+	
 	const FGMCAbilityTaskTargetDataVector3 Data = TaskData.Get<FGMCAbilityTaskTargetDataVector3>();
 	
 	Completed.Broadcast(Data.Target);
